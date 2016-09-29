@@ -1,13 +1,9 @@
 package Project;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Vector;
 
-import javax.swing.DefaultListModel;
-import javax.swing.DefaultListSelectionModel;
+
 import javax.swing.JList;
-import javax.swing.JOptionPane;
 
 public class contactData {
 	public JList <String> list;
@@ -20,6 +16,7 @@ public class contactData {
 	public contactData() {
 		
 		getConnection();
+	
 	}
 	public Connection getConnection(){
 		try{
@@ -31,28 +28,7 @@ public class contactData {
 	}
 	
 	
-	public ArrayList <String> FillListBox() {
-
-		list = new JList<String>();
-	DefaultListModel<String> DML = new DefaultListModel<String>();
-		try{
-			String sql = "SELECT name From contacts";
-			//Create Prepared Statement
-			Statement s = con.createStatement();
-			ResultSet rs = s.executeQuery(sql);
-			String pname = "";
-			
-			while(rs.next()){
-				pname = rs.getString("name");
-				DML.addElement(pname);	
-				list.setModel(DML);
-			}
-		
-		}catch(Exception e){
-			JOptionPane.showMessageDialog(null, e);	
-		}
-		return personList;
-	}
+	
 	public void addPerson(PersonInfo person) {
 		try{
 		
@@ -74,17 +50,29 @@ public class contactData {
 			System.out.println(e);
 		}
 	}
-	public int deletecontact(String name){
-		int no = 0;
-		try{
-			String sql = "DELETE FROM contacts WHERE name = ?";
-			//Create a Prepares statement
+	public void updatePerson(PersonInfo person) {
+		StringBuilder query = new StringBuilder();
+		String pname = person.getName();
+		query.append("UPDATE contacts SET name =?,phone=? , address=? , city=? ,state=? ,zip=? ,email=? Where name = " + "'").append(pname + "'");
+		String sql = query.toString();
+		try{	
+			//Create a Prepared statement
 			PreparedStatement ps = con.prepareStatement(sql);
-			ps.setString(1, name);
-			no = ps.executeUpdate();
+			ps.setString(1, person.getName());
+			ps.setInt(2 ,person.getPhone());
+			ps.setString(3, person.getAddress());
+			ps.setString(4, person.getCity());
+			ps.setString(5, person.getState());
+			ps.setInt(6, person.getZip());
+			ps.setString(7, person.getEmail());
+			
+			ps.executeUpdate();
+		
+			
 		}catch (Exception e){
-			System.out.println(e);
+			System.out.println("System did not connect.");
+			System.out.println(sql);
 		}
-		return no;
 	}
+	
 }

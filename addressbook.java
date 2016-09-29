@@ -4,13 +4,15 @@ import java.awt.*;
 import java.awt.event.*;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.sql.SQLException;
 import javax.swing.*;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 
-import GUI.menututorial.event;
+
 
 
 
@@ -18,25 +20,41 @@ public class addressbook{
 	contactData cd;
 	String name ,address, city ,state ,email;
 	int phone ,zip;
-	ArrayList<String> personList;
 	
 	JLabel jlName ,jlPhone ,jlAddress ,jlCity ,jlState ,jlZip ,jlEmail; 
 	JTextField tfName ,tfPhone ,tfAddress ,tfCity ,tfState ,tfZip ,tfEmail;
-	JButton add ,delete ,directions ,update;
+	JButton add ,delete ,directions ,update ,display;
 	JList <String> list;
 
-	DefaultListModel <String>m;
+	DefaultListModel <String> DLM;
 	JMenuBar menubar = new JMenuBar();
 	JMenu file = new JMenu();
 	JMenuItem viewcontacts ,exit;
 	Container cPane;
 	JPanel leftpanel ,centerpanel ,bottompanel ,toppanel;
 	private Connection con;
+	
+	private static final int LIST_ROW_COUNT = 40;
+	private static final int LIST_CHAR_WIDTH = 90;
+	private static final String LIST_PROTOTYPE = "%" + LIST_CHAR_WIDTH + "s";
+	private String userid = "root";
+	private String password = "Stlrams1";
+	private String url = "jdbc:mysql://localhost:3306/addressbook?characterEncoding=UTF-8&useSSL=false";
 	public addressbook() {
 		
 		createGUI();
 		cd = new contactData();
+		getConnection();
 		
+		
+	}
+	public Connection getConnection(){
+		try{
+			con = DriverManager.getConnection(url,userid,password);
+		}catch (SQLException ex) {
+			System.err.println("SQLException" + ex.getMessage());
+		}
+		return con;
 	}
 	
 	public Component addMenuWidgets() {
@@ -68,34 +86,61 @@ public class addressbook{
 		frame.setResizable(false);
 		frame.setVisible(true);
 	}
-	
 	public Component listContactnames() {
 		leftpanel = new JPanel(new FlowLayout());
-		
-		m = new DefaultListModel<String>();
 	
-		
-		
-		// Create list and put in scroll pane.
-		list = new JList<String>(DML);
-		list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-		list.setSelectedIndex(0);
-		list.setVisibleRowCount(10);
+		list = new JList<String>();
+		list.setVisibleRowCount(LIST_ROW_COUNT);
+		list.setPrototypeCellValue(String.format(LIST_PROTOTYPE, ""));
+
 		JScrollPane pane = new JScrollPane(list);
+		pane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
 		
-		int cellWidth = 350;
-		int cellHeight = 600;
-		list.setFixedCellWidth(cellWidth);
-		list.setFixedCellHeight(cellHeight);
-		
-		
+		list.addListSelectionListener(
+				new ListSelectionListener(){
+					public void valueChanged(ListSelectionEvent event){
+						StringBuilder query = new StringBuilder();
+						String selected = list.getSelectedValue().toString();
+						query.append("SELECT * FROM contacts WHERE name = "+ "'").append(selected).append("'");
+						String sql = query.toString();
+						try {
+							Statement s = con.createStatement();
+							ResultSet rs = s.executeQuery(sql);
+							while(rs.next()){
+								
+								 name = rs.getString("name");
+								 tfName.setText(name);
+								 phone = rs.getInt("phone");
+								 String phoneAsString = Integer.toString(phone);
+								 tfPhone.setText(phoneAsString);
+								 address = rs.getString("address");
+								 tfAddress.setText(address);
+								 city = rs.getString("city");
+								 tfCity.setText(city);
+								state = rs.getString("state");
+								 tfState.setText(state);
+								 zip = rs.getInt("zip");
+								 String zipAsString = Integer.toString(zip);
+								 tfZip.setText(zipAsString);
+								email = rs.getString("email");
+								 tfEmail.setText(email);
+								
+							}
+						} catch (SQLException e) {
+							System.out.println("System did not connect to database");
+							System.out.println(sql);
+						}
+						
+					}
+				}
+			);
 		leftpanel.add(pane);
 		return leftpanel;
 	}
 	
 	
 	public Component arrangeComponents() {
-		centerpanel = new JPanel(new GridLayout(7 ,0,0,50));
+		centerpanel = new JPanel(new GridLayout(7 ,0,0,35));
 		jlName = new JLabel("Name");
 		tfName = new JTextField(10);
 		jlPhone = new JLabel("Phone");
@@ -132,14 +177,22 @@ public class addressbook{
 	public Component addButton(){
 		bottompanel = new JPanel(new FlowLayout());
 		add = new JButton("ADD");
+		update = new JButton("UPDATE");
 		delete = new JButton("DELETE");
+		display = new JButton("DISPLAY");
 		directions = new JButton("DIRECTIONS");
 		
 		event e = new event();
 		add.addActionListener(e);
+		update.addActionListener(e);
+		delete.addActionListener(e);
+		display.addActionListener(e);
+		directions.addActionListener(e);
 		
 		bottompanel.add(add);
+		bottompanel.add(update);
 		bottompanel.add(delete);
+		bottompanel.add(display);
 		bottompanel.add(directions);
 		
 		
@@ -153,14 +206,17 @@ public class addressbook{
 		public void actionPerformed(ActionEvent e){
 			if (e.getSource() == add){
 				addContact();
-				clear();
-				cd.FillListBox();
-				
+				clear();	
 			}else if (e.getSource() == delete){
-				
-			}
-			
-			else if (e.getSource() == directions){
+				deleteContacts();
+				clear();
+				displayContacts();
+			}else if (e.getSource() == update){
+				updateContacts();
+				clear();
+			}else if (e.getSource() == display){
+				displayContacts();
+			}else if (e.getSource() == directions ){
 				
 			}
 		}
@@ -186,21 +242,93 @@ public class addressbook{
 		email = tfEmail.getText();
 		
 		if(name.equals("")){
-			JOptionPane.showMessageDialog(null, "Please enter person Name ");
+			
+			JOptionPane.showMessageDialog(null, "Please enter name");
 		}else{
 			//create a PersonInfo object and pass it to contactData to save it
 			PersonInfo person = new PersonInfo(name , phone ,address ,city ,state ,zip ,email);
 			cd.addPerson(person);
+			DLM = new DefaultListModel<String>();
+			String sql = "SELECT name FROM contacts";
+			try {
+				Statement s = con.createStatement();
+				ResultSet rs = s.executeQuery(sql);
+				while(rs.next()){
+					String name = rs.getString("name");
+					DLM.addElement(name);
+				}
+				list.setModel(DLM);
+			} catch (SQLException e) {
+				System.out.println("System did not connect to database");
+			}
 			
 			
 			JOptionPane.showMessageDialog(null, "Contact Saved");
 		}
-//		public void deleteContact(){
-//			name = tfName.getText();
-//			name.toUpperCase();
-//			
-//		}
 	}
+	public void updateContacts(){
+		name = tfName.getText();
+		name = name.toUpperCase();
+		try{
+			phone = Integer.parseInt("" + tfPhone.getText());
+		}catch(Exception e){
+			/*System.out.print("Input is a string");
+	   		JOptionPane.showMessageDialog(null, "Please enter Phone Number");*/
+		}
+		address = tfAddress.getText();
+		city = tfCity.getText();
+		state = tfState.getText();
+		try{
+			zip = Integer.parseInt("" + tfZip.getText());
+		}catch(Exception e){
+			//JOptionPane.showMessageDialog(null, "Please enter Zipcode");
+		}
+		
+		email = tfEmail.getText();
+		
+		if(name.equals("")){
+			JOptionPane.showMessageDialog(null, "Please enter name");
+		}else{
+			//create a PersonInfo object and pass it to contactData to save it
+			PersonInfo person = new PersonInfo(name , phone ,address ,city ,state ,zip ,email);
+			cd.updatePerson(person);
+			JOptionPane.showMessageDialog(null, "Contact Updated");
+		}
+		
+	}
+	public void displayContacts(){
+		DLM = new DefaultListModel<String>();
+		String sql = "SELECT name FROM contacts";
+		try {
+			Statement s = con.createStatement();
+			ResultSet rs = s.executeQuery(sql);
+			while(rs.next()){
+				String name = rs.getString("name");
+				DLM.addElement(name);
+			}
+			list.setModel(DLM);
+		} catch (SQLException e) {
+			System.out.println("System did not connect to database");
+		}
+		JOptionPane.showMessageDialog(null, "Database Displayed ");
+	}
+	
+	public void deleteContacts(){
+		PreparedStatement ps = null;
+		StringBuilder query = new StringBuilder();
+		String pname = list.getSelectedValue().toString();
+		query.append("DELETE FROM contacts WHERE name =" + "'").append(pname).append("'");
+		String sql = query.toString();
+		try{
+			// Create a Prepared statement
+			ps = con.prepareStatement(sql);
+			ps.executeUpdate();
+		}
+		catch(Exception e){
+			System.out.println("System did not connect");
+		}
+	}
+	
 	
 	 public void clear(){
 		    
