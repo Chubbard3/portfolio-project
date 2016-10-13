@@ -2,6 +2,7 @@ package Project;
 
 import java.awt.*;
 import java.awt.event.*;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -11,7 +12,13 @@ import java.sql.SQLException;
 import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
-
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLEncoder;
+import java.awt.Desktop;
 
 
 
@@ -29,7 +36,7 @@ public class addressbook{
 	DefaultListModel <String> DLM;
 	JMenuBar menubar = new JMenuBar();
 	JMenu file = new JMenu();
-	JMenuItem viewcontacts ,exit;
+	JMenuItem viewcontacts ,exit ,save;
 	Container cPane;
 	JPanel leftpanel ,centerpanel ,bottompanel ,toppanel;
 	private Connection con;
@@ -63,10 +70,17 @@ public class addressbook{
 			file = new JMenu("File");
 			menubar.add(file);
 			viewcontacts = new JMenuItem("View Contacts");
+			save = new JMenuItem("SAVE");
+			file.add(save);
 			file.add(viewcontacts);
 			exit = new JMenuItem("Exit");
 			file.add(exit);
-//			toppanel.setAlignmentX(LEFT_ALIGNMENT);
+			
+			event1 ev = new event1();
+			viewcontacts.addActionListener(ev);
+			save.addActionListener(ev);
+			exit.addActionListener(ev);
+			
 			toppanel.add(menubar);
 			return toppanel;
 		}
@@ -217,6 +231,34 @@ public class addressbook{
 			}else if (e.getSource() == display){
 				displayContacts();
 			}else if (e.getSource() == directions ){
+				if(Desktop.isDesktopSupported()){
+					try {
+						String address1 = tfAddress.getText();
+						String city1 = tfCity.getText();
+						String state1 = tfState.getText();
+						String zip1 = tfZip.getText();
+						StringBuilder query = new StringBuilder();
+						query.append(address1).append(" ").append(city1).append(" ").append(state1).append(" ").append(zip1);
+						String Url =  "https://maps.google.com/?q=" + URLEncoder.encode(query.toString(),"UTF-8");
+						Desktop.getDesktop().browse(new URI(Url));
+					} catch (IOException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					} catch (URISyntaxException e1) {
+						// TODO Auto-generated catch block
+						e1.printStackTrace();
+					}
+				}
+			}
+		}
+	}
+	public class event1 implements ActionListener{
+		public void actionPerformed(ActionEvent ev){
+			if (ev.getSource() == viewcontacts){
+				
+			}else if(ev.getSource() == save){
+				saveXml();
+			}else if(ev.getSource() == exit){
 				
 			}
 		}
@@ -258,6 +300,7 @@ public class addressbook{
 					DLM.addElement(name);
 				}
 				list.setModel(DLM);
+				JOptionPane.showMessageDialog(null, "Contact Added");
 			} catch (SQLException e) {
 				System.out.println("System did not connect to database");
 			}
@@ -327,6 +370,30 @@ public class addressbook{
 		catch(Exception e){
 			System.out.println("System did not connect");
 		}
+	}
+	public void saveXml() {
+		String sql = "SELECT * FROM contacts";
+		try {
+//			Connect to Database
+			Statement s = con.createStatement();
+			ResultSet rs = s.executeQuery(sql);
+//			Execute JSON Object
+			JSONObject json = new JSONObject();
+			JSONArray jArray = new JSONArray();
+			while(rs.next()){
+				
+			}
+			
+		} catch (SQLException e) {
+			
+			System.out.println("Error in Databate");
+			 e.printStackTrace();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
 	}
 	
 	
